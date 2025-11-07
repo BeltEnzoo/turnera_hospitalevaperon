@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Sistemas - Turnera</title>
+    <link rel="stylesheet" href="/css/sistema.css">
+</head>
+<body>
+    <div class="app" id="app">
+        <!-- Login -->
+        <div id="login-section" class="login-container">
+            <div class="login-box">
+                <h1>⚙️ Panel de Sistemas</h1>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+                    <div id="login-error" class="error-message"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard Sistema -->
+        <div id="dashboard-section" style="display: none;">
+            <nav class="navbar">
+                <div class="navbar-brand">
+                    <h2>⚙️ Panel de Sistemas</h2>
+                </div>
+                <div class="navbar-user">
+                    <span id="user-name"></span>
+                    <button onclick="logout()" class="btn btn-sm">Salir</button>
+                </div>
+            </nav>
+
+            <div class="container">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="showTab('medicos')">👨‍⚕️ Médicos</button>
+                    <button class="tab-btn" onclick="showTab('turnos')">📋 Turnos</button>
+                    <button class="tab-btn" onclick="showTab('database')">🗄️ Base de Datos</button>
+                    <button class="tab-btn" onclick="showTab('config')">⚙️ Configuración</button>
+                    <button class="tab-btn" onclick="showTab('reportes')">📊 Reportes</button>
+                </div>
+
+                <!-- Tab: Gestión de Médicos -->
+                <div id="tab-medicos" class="tab-content active">
+                    <div class="section-header">
+                        <h3>👨‍⚕️ Gestión de Médicos</h3>
+                        <button class="btn btn-success" onclick="mostrarFormularioMedico()">➕ Nuevo Médico</button>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table id="medicos-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Usuario</th>
+                                    <th>Nombre Completo</th>
+                                    <th>Consultorio</th>
+                                    <th>Especialidad</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="medicos-tbody">
+                                <tr>
+                                    <td colspan="7" class="text-center">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab: Base de Datos -->
+                <div id="tab-database" class="tab-content">
+                    <div class="section-header">
+                        <h3>🗄️ Vista de Base de Datos</h3>
+                        <div class="action-buttons">
+                            <button class="btn btn-success" onclick="actualizarBaseDatos()">🔄 Actualizar</button>
+                            <button class="btn btn-warning" onclick="toggleAutoRefresh()">
+                                <span id="auto-refresh-text">▶️ Auto-actualización</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="database-tabs">
+                        <button class="db-tab-btn active" onclick="showDbTab('usuarios')">👥 Usuarios</button>
+                        <button class="db-tab-btn" onclick="showDbTab('turnos')">📋 Turnos</button>
+                        <button class="db-tab-btn" onclick="showDbTab('historial')">📜 Historial</button>
+                        <button class="db-tab-btn" onclick="showDbTab('estadisticas')">📊 Estadísticas</button>
+                    </div>
+
+                    <!-- Tab: Usuarios -->
+                    <div id="db-usuarios" class="db-tab-content active">
+                        <h4>👥 Tabla: usuarios</h4>
+                        <div class="table-container">
+                            <table id="db-usuarios-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Username</th>
+                                        <th>Nombre Completo</th>
+                                        <th>Rol</th>
+                                        <th>Consultorio</th>
+                                        <th>Especialidad</th>
+                                        <th>Activo</th>
+                                        <th>Created At</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="db-usuarios-tbody">
+                                    <tr><td colspan="8" class="text-center">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Turnos -->
+                    <div id="db-turnos" class="db-tab-content">
+                        <h4>📋 Tabla: turnos</h4>
+                        <div class="db-filters">
+                            <input type="date" id="db-fecha-turnos" class="form-control">
+                            <select id="db-estado-turnos" class="form-control">
+                                <option value="">Todos los estados</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="llamado">Llamado</option>
+                                <option value="atendido">Atendido</option>
+                                <option value="ausente">Ausente</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="filtrarDbTurnos()">Filtrar</button>
+                        </div>
+                        <div class="table-container">
+                            <table id="db-turnos-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>N° Turno</th>
+                                        <th>Paciente</th>
+                                        <th>DNI</th>
+                                        <th>Médico ID</th>
+                                        <th>Consultorio</th>
+                                        <th>Fecha</th>
+                                        <th>Hora</th>
+                                        <th>Estado</th>
+                                        <th>Llamado At</th>
+                                        <th>Atendido At</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="db-turnos-tbody">
+                                    <tr><td colspan="11" class="text-center">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Historial -->
+                    <div id="db-historial" class="db-tab-content">
+                        <h4>📜 Tabla: historial_llamados</h4>
+                        <div class="table-container">
+                            <table id="db-historial-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Turno ID</th>
+                                        <th>Médico ID</th>
+                                        <th>Paciente</th>
+                                        <th>Consultorio</th>
+                                        <th>Llamado At</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="db-historial-tbody">
+                                    <tr><td colspan="6" class="text-center">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Estadísticas -->
+                    <div id="db-estadisticas" class="db-tab-content">
+                        <h4>📊 Estadísticas de Base de Datos</h4>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">👥</div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="db-total-usuarios">0</div>
+                                    <div class="stat-label">Total Usuarios</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">👨‍⚕️</div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="db-total-medicos">0</div>
+                                    <div class="stat-label">Médicos</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">📋</div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="db-total-turnos">0</div>
+                                    <div class="stat-label">Total Turnos</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">📜</div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="db-total-historial">0</div>
+                                    <div class="stat-label">Llamados Realizados</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="db-actions">
+                            <button class="btn btn-danger" onclick="limpiarBaseDatos()">🧹 Limpiar Base de Datos</button>
+                            <button class="btn btn-warning" onclick="exportarBaseDatos()">💾 Exportar BD</button>
+                            <button class="btn btn-info" onclick="optimizarBaseDatos()">⚡ Optimizar BD</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Gestión de Turnos -->
+                <div id="tab-turnos" class="tab-content">
+                    <div class="section-header">
+                        <h3>📋 Gestión de Turnos</h3>
+                        <div class="action-buttons">
+                            <input type="date" id="filter-fecha-turnos" class="form-control">
+                            <button class="btn btn-primary" onclick="cargarTurnos()">Filtrar</button>
+                            <button class="btn btn-danger" onclick="limpiarTurnos()">🧹 Limpiar Turnos</button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table id="turnos-table">
+                            <thead>
+                                <tr>
+                                    <th>N° Turno</th>
+                                    <th>Paciente</th>
+                                    <th>DNI</th>
+                                    <th>Médico</th>
+                                    <th>Consultorio</th>
+                                    <th>Fecha</th>
+                                    <th>Hora</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="turnos-tbody">
+                                <tr>
+                                    <td colspan="9" class="text-center">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab: Configuración -->
+                <div id="tab-config" class="tab-content">
+                    <h3>⚙️ Configuración del Sistema</h3>
+                    
+                    <div class="config-sections">
+                        <div class="config-section">
+                            <h4>🔊 Configuración de Audio</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Velocidad de voz</label>
+                                    <select id="audio-rate" class="form-control">
+                                        <option value="0.5">Muy lenta</option>
+                                        <option value="0.7">Lenta</option>
+                                        <option value="0.9" selected>Normal</option>
+                                        <option value="1.1">Rápida</option>
+                                        <option value="1.3">Muy rápida</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Tono de voz</label>
+                                    <select id="audio-pitch" class="form-control">
+                                        <option value="0.5">Muy grave</option>
+                                        <option value="0.8">Grave</option>
+                                        <option value="1.0" selected>Normal</option>
+                                        <option value="1.2">Agudo</option>
+                                        <option value="1.5">Muy agudo</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" onclick="guardarConfigAudio()">Guardar Configuración</button>
+                        </div>
+
+                        <div class="config-section">
+                            <h4>📅 Configuración de Horarios</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Hora de inicio</label>
+                                    <input type="time" id="hora-inicio" value="08:00" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Hora de fin</label>
+                                    <input type="time" id="hora-fin" value="17:00" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Intervalo entre turnos (minutos)</label>
+                                    <input type="number" id="intervalo-turnos" value="30" min="15" max="60" class="form-control">
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" onclick="guardarConfigHorarios()">Guardar Horarios</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Reportes -->
+                <div id="tab-reportes" class="tab-content">
+                    <div class="section-header">
+                        <h3>📊 Reportes y Estadísticas</h3>
+                        <div class="filters-container">
+                            <select id="filter-mes" class="form-control">
+                                <option value="">Todos los meses</option>
+                                <option value="01">Enero</option>
+                                <option value="02">Febrero</option>
+                                <option value="03">Marzo</option>
+                                <option value="04">Abril</option>
+                                <option value="05">Mayo</option>
+                                <option value="06">Junio</option>
+                                <option value="07">Julio</option>
+                                <option value="08">Agosto</option>
+                                <option value="09">Septiembre</option>
+                                <option value="10">Octubre</option>
+                                <option value="11">Noviembre</option>
+                                <option value="12">Diciembre</option>
+                            </select>
+                            <select id="filter-especialidad" class="form-control">
+                                <option value="">Todas las especialidades</option>
+                            </select>
+                            <select id="filter-medico" class="form-control">
+                                <option value="">Todos los médicos</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="aplicarFiltrosReportes()">🔍 Aplicar Filtros</button>
+                            <button class="btn btn-secondary" onclick="limpiarFiltrosReportes()">🧹 Limpiar</button>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">👨‍⚕️</div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="total-medicos">0</div>
+                                <div class="stat-label">Médicos Activos</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📋</div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="total-turnos">0</div>
+                                <div class="stat-label">Total Turnos</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">⏳</div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="turnos-pendientes">0</div>
+                                <div class="stat-label">Pendientes</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="turnos-atendidos">0</div>
+                                <div class="stat-label">Atendidos</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">❌</div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="turnos-ausentes">0</div>
+                                <div class="stat-label">Ausentes</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🔔</div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="total-llamados">0</div>
+                                <div class="stat-label">Total Llamados</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="report-details">
+                        <h4>📈 Detalles por Especialidad</h4>
+                        <div id="especialidades-chart" class="chart-container">
+                            <div class="loading">Cargando datos...</div>
+                        </div>
+                    </div>
+
+                    <div class="report-actions">
+                        <button class="btn btn-primary" onclick="generarReporteDiario()">📄 Reporte Diario</button>
+                        <button class="btn btn-success" onclick="generarReporteMensual()">📊 Reporte Mensual</button>
+                        <button class="btn btn-info" onclick="generarReporteEspecialidad()">🏥 Reporte por Especialidad</button>
+                        <button class="btn btn-warning" onclick="exportarDatos()">💾 Exportar Datos</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Nuevo/Editar Médico -->
+        <div id="medico-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-title">Nuevo Médico</h3>
+                    <button class="close-btn" onclick="cerrarModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="medico-form">
+                        <input type="hidden" id="medico-id">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Usuario *</label>
+                                <input type="text" id="medico-username" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña *</label>
+                                <input type="password" id="medico-password" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre Completo *</label>
+                            <input type="text" id="medico-nombre" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Consultorio *</label>
+                                <input type="text" id="medico-consultorio" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Especialidad</label>
+                                <input type="text" id="medico-especialidad">
+                            </div>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                            <button type="submit" class="btn btn-success">Guardar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/sistema.js"></script>
+</body>
+</html>

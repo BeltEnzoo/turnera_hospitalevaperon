@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Display Público - Turnera Hospital</title>
+    <link rel="stylesheet" href="/css/display.css">
+</head>
+<body>
+    <div class="display-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">🏥</div>
+            <h1 class="title">Hospital - Sistema de Turnos</h1>
+            <div class="datetime">
+                <div id="fecha" class="fecha"></div>
+                <div id="hora" class="hora"></div>
+            </div>
+        </header>
+
+        <!-- Llamado Actual -->
+        <div class="llamado-actual" id="llamado-actual">
+            <div class="llamado-header">
+                <span class="pulse-icon">🔔</span>
+                <h2>LLAMADO ACTUAL</h2>
+            </div>
+            <div class="llamado-content" id="llamado-content">
+                <div class="paciente-nombre" id="paciente-nombre">-</div>
+                <div class="consultorio-info">
+                    <span class="consultorio-label">Consultorio</span>
+                    <span class="consultorio-numero" id="consultorio-numero">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial de llamados -->
+        <div class="historial-container">
+            <h3 class="historial-title">Últimos Llamados</h3>
+            <div class="historial-lista" id="historial-lista">
+                <div class="sin-datos">Esperando llamados...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/display.js"></script>
+</body>
+</html>
+
+

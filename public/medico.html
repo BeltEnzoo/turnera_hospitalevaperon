@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Médico - Turnera</title>
+    <link rel="stylesheet" href="/css/medico.css">
+</head>
+<body>
+    <div class="app" id="app">
+        <!-- Login -->
+        <div id="login-section" class="login-container">
+            <div class="login-box">
+                <h1>👨‍⚕️ Panel Médico</h1>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+                    <div id="login-error" class="error-message"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard Médico -->
+        <div id="dashboard-section" style="display: none;">
+            <nav class="navbar">
+                <div class="navbar-brand">
+                    <h2>👨‍⚕️ Panel Médico</h2>
+                </div>
+                <div class="navbar-info">
+                    <div class="medico-info">
+                        <span id="medico-nombre" class="medico-nombre"></span>
+                        <span id="medico-consultorio" class="medico-consultorio"></span>
+                    </div>
+                    <button onclick="logout()" class="btn btn-sm">Salir</button>
+                </div>
+            </nav>
+
+            <div class="container">
+                <!-- Estadísticas -->
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-icon">📋</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-total">0</div>
+                            <div class="stat-label">Total Turnos</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏳</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-pendientes">0</div>
+                            <div class="stat-label">Pendientes</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-atendidos">0</div>
+                            <div class="stat-label">Atendidos</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">❌</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="stat-ausentes">0</div>
+                            <div class="stat-label">Ausentes</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtro de fecha -->
+                <div class="filter-container">
+                    <label>Fecha:</label>
+                    <input type="date" id="filter-fecha" class="form-control">
+                    <button class="btn btn-primary" onclick="cargarTurnos()">Actualizar</button>
+                </div>
+
+                <!-- Lista de turnos -->
+                <div class="turnos-container" id="turnos-container">
+                    <div class="loading">Cargando turnos...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/medico.js"></script>
+</body>
+</html>
+
+

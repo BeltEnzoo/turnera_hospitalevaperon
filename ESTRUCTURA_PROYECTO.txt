@@ -1,0 +1,166 @@
+📁 ESTRUCTURA DEL PROYECTO - SISTEMA DE TURNERA HOSPITAL
+══════════════════════════════════════════════════════════
+
+Turnera/
+│
+├── 📄 package.json                   # Dependencias y scripts npm
+├── 📄 server.js                      # Servidor principal Express + Socket.IO
+├── 📄 .gitignore                     # Archivos ignorados por Git
+│
+├── 📚 README.md                      # Documentación completa
+├── 📚 QUICKSTART.md                  # Guía rápida de inicio
+├── 📚 ARQUITECTURA.md                # Diagramas y arquitectura técnica
+│
+├── 📁 database/
+│   ├── db.js                         # Configuración SQLite + creación de tablas
+│   └── turnera.db                    # Base de datos (se crea automáticamente)
+│
+├── 📁 middleware/
+│   └── auth.js                       # Verificación JWT y roles
+│
+├── 📁 routes/                        # Endpoints de la API REST
+│   ├── auth.js                       # Login y verificación de token
+│   ├── turnos.js                     # CRUD turnos + upload PDF + llamar
+│   ├── medicos.js                    # Info y estadísticas de médicos
+│   └── display.js                    # Endpoints para display público
+│
+├── 📁 scripts/
+│   └── initDatabase.js               # Script para inicializar DB con datos de ejemplo
+│
+├── 📁 public/                        # Frontend (archivos estáticos)
+│   │
+│   ├── 📄 index.html                 # Página de inicio (selector de interfaces)
+│   ├── 📄 admin.html                 # Panel administrativo
+│   ├── 📄 medico.html                # Panel médico
+│   ├── 📄 display.html               # Display público para TV
+│   │
+│   ├── 📁 css/
+│   │   ├── admin.css                 # Estilos panel admin
+│   │   ├── medico.css                # Estilos panel médico
+│   │   └── display.css               # Estilos display TV (animaciones)
+│   │
+│   └── 📁 js/
+│       ├── admin.js                  # Lógica panel admin
+│       ├── medico.js                 # Lógica panel médico + Socket.IO
+│       └── display.js                # Lógica display + Text-to-Speech + Socket.IO
+│
+└── 📁 uploads/                       # PDFs temporales (se limpian después de procesar)
+
+
+══════════════════════════════════════════════════════════
+TECNOLOGÍAS PRINCIPALES
+══════════════════════════════════════════════════════════
+
+Backend:
+  • Node.js + Express
+  • Socket.IO (WebSockets)
+  • SQLite3
+  • JWT + Bcrypt
+  • Multer + pdf-parse
+
+Frontend:
+  • HTML5 + CSS3 + JavaScript Vanilla
+  • Socket.IO Client
+  • Fetch API
+  • Web Speech API (Text-to-Speech)
+
+
+══════════════════════════════════════════════════════════
+FLUJO DE TRABAJO
+══════════════════════════════════════════════════════════
+
+1. ADMINISTRADOR
+   └─> Accede a /admin.html
+   └─> Carga PDF o crea turnos manualmente
+   └─> Turnos se guardan en SQLite
+
+2. MÉDICO
+   └─> Accede a /medico.html
+   └─> Ve sus turnos del día
+   └─> Presiona "Llamar" en un turno
+   └─> Se emite evento Socket.IO
+
+3. DISPLAY PÚBLICO (TV)
+   └─> Conectado en /display.html
+   └─> Escucha eventos Socket.IO
+   └─> Muestra nombre + consultorio
+   └─> Reproduce audio por parlante (Text-to-Speech)
+
+
+══════════════════════════════════════════════════════════
+TABLAS DE LA BASE DE DATOS
+══════════════════════════════════════════════════════════
+
+usuarios
+  ├─ id, username, password (hash)
+  ├─ nombre_completo, rol (admin/medico)
+  └─ consultorio, especialidad, activo
+
+turnos
+  ├─ id, numero_turno, paciente_nombre, paciente_documento
+  ├─ medico_id, consultorio, fecha, hora
+  ├─ estado (pendiente/llamado/atendido/ausente)
+  └─ llamado_at, atendido_at, observaciones
+
+historial_llamados
+  ├─ id, turno_id, medico_id
+  ├─ paciente_nombre, consultorio
+  └─ llamado_at
+
+
+══════════════════════════════════════════════════════════
+COMANDOS PRINCIPALES
+══════════════════════════════════════════════════════════
+
+Instalación:
+  npm install
+
+Inicializar base de datos:
+  npm run init-db
+
+Iniciar servidor:
+  npm start              # Producción
+  npm run dev            # Desarrollo (con nodemon)
+
+Acceder:
+  http://localhost:3000
+
+
+══════════════════════════════════════════════════════════
+USUARIOS POR DEFECTO
+══════════════════════════════════════════════════════════
+
+Administrador:
+  Usuario: admin
+  Contraseña: admin123
+
+Médicos:
+  Usuario: dr.garcia / dra.lopez / dr.martinez
+  Contraseña: medico123
+
+⚠️  CAMBIAR EN PRODUCCIÓN
+
+
+══════════════════════════════════════════════════════════
+CARACTERÍSTICAS DESTACADAS
+══════════════════════════════════════════════════════════
+
+✅ Sistema completo funcional
+✅ 3 interfaces (admin, médico, display)
+✅ Tiempo real con WebSockets
+✅ Text-to-Speech automático
+✅ Upload y parsing de PDF
+✅ Autenticación JWT
+✅ Base de datos SQLite (ideal para Raspberry Pi)
+✅ Responsive design
+✅ Animaciones suaves
+✅ Estados de turno (pendiente/llamado/atendido/ausente)
+✅ Historial de llamados
+✅ Estadísticas para médicos
+✅ Wake Lock API (pantalla siempre activa)
+
+
+══════════════════════════════════════════════════════════
+
+
+

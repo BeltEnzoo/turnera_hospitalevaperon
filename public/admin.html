@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrativo - Turnera</title>
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+    <div class="app" id="app">
+        <!-- Login -->
+        <div id="login-section" class="login-container">
+            <div class="login-box">
+                <h1>🏥 Panel Administrativo</h1>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+                    <div id="login-error" class="error-message"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard-section" style="display: none;">
+            <nav class="navbar">
+                <div class="navbar-brand">
+                    <h2>🏥 Panel Administrativo</h2>
+                </div>
+                <div class="navbar-user">
+                    <span id="user-name"></span>
+                    <button onclick="logout()" class="btn btn-sm">Salir</button>
+                </div>
+            </nav>
+
+            <div class="container">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="showTab('cargar')">📄 Cargar Turnos</button>
+                    <button class="tab-btn" onclick="showTab('lista')">📋 Lista de Turnos</button>
+                    <button class="tab-btn" onclick="showTab('manual')">➕ Crear Turno</button>
+                </div>
+
+                <!-- Tab: Cargar PDF -->
+                <div id="tab-cargar" class="tab-content active">
+                    <h3>Cargar Turnos desde PDF</h3>
+                    <p class="info-text">Sube un archivo PDF con los turnos del día. El sistema extraerá automáticamente la información.</p>
+                    
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-icon">📄</div>
+                        <p>Arrastra un archivo PDF aquí o haz clic para seleccionar</p>
+                        <input type="file" id="pdf-file" accept=".pdf" hidden>
+                        <button class="btn btn-primary" onclick="document.getElementById('pdf-file').click()">
+                            Seleccionar PDF
+                        </button>
+                    </div>
+                    
+                    <div id="upload-result" class="upload-result"></div>
+                </div>
+
+                <!-- Tab: Lista de Turnos -->
+                <div id="tab-lista" class="tab-content">
+                    <h3>Lista de Turnos</h3>
+                    
+                    <div class="filters">
+                        <input type="date" id="filter-fecha" class="form-control">
+                        <select id="filter-estado" class="form-control">
+                            <option value="">Todos los estados</option>
+                            <option value="pendiente">Pendiente</option>
+                            <option value="llamado">Llamado</option>
+                            <option value="atendido">Atendido</option>
+                            <option value="ausente">Ausente</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="cargarTurnos()">Filtrar</button>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="turnos-table">
+                            <thead>
+                                <tr>
+                                    <th>N° Turno</th>
+                                    <th>Paciente</th>
+                                    <th>DNI</th>
+                                    <th>Médico</th>
+                                    <th>Consultorio</th>
+                                    <th>Fecha</th>
+                                    <th>Hora</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="turnos-tbody">
+                                <tr>
+                                    <td colspan="8" class="text-center">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab: Crear Turno Manual -->
+                <div id="tab-manual" class="tab-content">
+                    <h3>Crear Turno Manualmente</h3>
+                    
+                    <form id="crear-turno-form" class="form-turno">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Número de Turno *</label>
+                                <input type="text" id="numero_turno" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha *</label>
+                                <input type="date" id="fecha" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Hora *</label>
+                                <input type="time" id="hora" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Nombre del Paciente *</label>
+                                <input type="text" id="paciente_nombre" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Documento</label>
+                                <input type="text" id="paciente_documento">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Médico *</label>
+                                <select id="medico_id" required>
+                                    <option value="">Seleccione un médico</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Consultorio *</label>
+                                <input type="text" id="consultorio" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Observaciones</label>
+                            <textarea id="observaciones" rows="3"></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-success">Crear Turno</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/admin.js"></script>
+</body>
+</html>
+
+
+
