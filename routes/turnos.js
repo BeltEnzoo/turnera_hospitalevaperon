@@ -10,7 +10,7 @@ const { verificarToken, verificarRol } = require('../middleware/auth');
 function obtenerMedicos() {
   return new Promise((resolve, reject) => {
     db.all(
-      'SELECT id, nombre_completo, username FROM usuarios WHERE rol = "medico"',
+      'SELECT id, nombre_completo, username, consultorio FROM usuarios WHERE rol = "medico"',
       (err, rows) => {
         if (err) {
           return reject(err);
@@ -374,12 +374,17 @@ function parsearTurnosPDF(texto, medicos = []) {
       
       console.log(`Turno creado: ${apellidoNombre}, DNI: ${dni}, Edad: ${edad}`);
       
+      const consultorioAsignado =
+        (medicoDetectado && medicoDetectado.consultorio) ||
+        consultorio ||
+        'Consultorio Externo';
+
       turnos.push({
         numero_turno: `T${numeroTurno.toString().padStart(3, '0')}`,
         paciente_nombre: apellidoNombre,
         paciente_documento: dni,
         medico_id: medicoId,
-        consultorio: consultorio || 'Consultorio Externo',
+        consultorio: consultorioAsignado,
         fecha: fechaDocumento || new Date().toISOString().split('T')[0],
         hora: horaFormateada,
         observaciones: `Edad: ${edad}, Obra Social: ${obraSocial}, HCE: ${hce}`
