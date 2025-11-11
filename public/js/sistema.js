@@ -119,10 +119,49 @@ function showTab(tabName) {
 }
 
 // Configuración del Sistema
-function cargarConfiguracion() {
+async function cargarConfiguracion() {
     console.log('Cargando configuración del sistema...');
-    // Por ahora, solo mostrar la interfaz
-    // En el futuro se puede implementar carga de configuraciones guardadas
+    try {
+        const response = await fetch(`${API_URL}/config`);
+        if (!response.ok) {
+            throw new Error('Respuesta no válida');
+        }
+        const data = await response.json();
+
+        if (data.audio) {
+            const rateField = document.getElementById('audio-rate');
+            const pitchField = document.getElementById('audio-pitch');
+
+            if (rateField) {
+                rateField.value = String(data.audio.rate ?? 0.9);
+            }
+
+            if (pitchField) {
+                pitchField.value = String(data.audio.pitch ?? 1);
+            }
+        }
+
+        if (data.horarios) {
+            const inicioField = document.getElementById('hora-inicio');
+            const finField = document.getElementById('hora-fin');
+            const intervaloField = document.getElementById('intervalo-turnos');
+
+            if (inicioField) {
+                inicioField.value = data.horarios.horaInicio || '08:00';
+            }
+
+            if (finField) {
+                finField.value = data.horarios.horaFin || '17:00';
+            }
+
+            if (intervaloField) {
+                intervaloField.value = data.horarios.intervalo ?? 30;
+            }
+        }
+    } catch (error) {
+        console.error('Error cargando configuración:', error);
+        mostrarNotificacion('❌ No se pudo cargar la configuración', 'error');
+    }
 }
 
 function cargarReportes() {
@@ -557,25 +596,61 @@ async function limpiarTurnos() {
 }
 
 // Configuración
-function guardarConfigAudio() {
-    const config = {
-        rate: parseFloat(document.getElementById('audio-rate').value),
-        pitch: parseFloat(document.getElementById('audio-pitch').value)
-    };
-    
-    localStorage.setItem('audioConfig', JSON.stringify(config));
-    mostrarNotificacion('✅ Configuración de audio guardada', 'success');
+async function guardarConfigAudio() {
+    try {
+        const payload = {
+            rate: parseFloat(document.getElementById('audio-rate').value),
+            pitch: parseFloat(document.getElementById('audio-pitch').value)
+        };
+
+        const response = await fetch(`${API_URL}/config/audio`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Error guardando configuración de audio');
+        }
+
+        mostrarNotificacion('✅ Configuración de audio guardada', 'success');
+    } catch (error) {
+        console.error('Error guardando configuración de audio:', error);
+        mostrarNotificacion('❌ Error al guardar configuración de audio', 'error');
+    }
 }
 
-function guardarConfigHorarios() {
-    const config = {
-        horaInicio: document.getElementById('hora-inicio').value,
-        horaFin: document.getElementById('hora-fin').value,
-        intervalo: parseInt(document.getElementById('intervalo-turnos').value)
-    };
-    
-    localStorage.setItem('horariosConfig', JSON.stringify(config));
-    mostrarNotificacion('✅ Configuración de horarios guardada', 'success');
+async function guardarConfigHorarios() {
+    try {
+        const payload = {
+            horaInicio: document.getElementById('hora-inicio').value,
+            horaFin: document.getElementById('hora-fin').value,
+            intervalo: parseInt(document.getElementById('intervalo-turnos').value)
+        };
+
+        const response = await fetch(`${API_URL}/config/horarios`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Error guardando horarios');
+        }
+
+        mostrarNotificacion('✅ Configuración de horarios guardada', 'success');
+    } catch (error) {
+        console.error('Error guardando horarios:', error);
+        mostrarNotificacion('❌ Error al guardar horarios', 'error');
+    }
 }
 
 // Reportes

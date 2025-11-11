@@ -28,6 +28,7 @@ const authRoutes = require('./routes/auth');
 const turnoRoutes = require('./routes/turnos');
 const medicoRoutes = require('./routes/medicos');
 const displayRoutes = require('./routes/display');
+const configRoutes = require('./routes/config');
 const databaseRoutes = require('./routes/database');
 const testRoutes = require('./routes/test');
 
@@ -35,6 +36,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/turnos', turnoRoutes);
 app.use('/api/medicos', medicoRoutes);
 app.use('/api/display', displayRoutes);
+app.use('/api/config', configRoutes);
 app.use('/api/database', databaseRoutes);
 app.use('/api/test', testRoutes);
 

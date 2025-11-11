@@ -2,15 +2,42 @@ const API_URL = window.location.origin + '/api';
 let socket;
 let synth = window.speechSynthesis;
 let ultimoLlamado = null;
+let audioConfig = {
+    rate: 0.9,
+    pitch: 1,
+    voice: ''
+};
 
 // Inicialización
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     actualizarFechaHora();
     setInterval(actualizarFechaHora, 1000);
     
+    await cargarAudioConfig();
     conectarSocket();
     cargarHistorial();
 });
+
+async function cargarAudioConfig() {
+    try {
+        const response = await fetch(`${API_URL}/config/audio`);
+        if (!response.ok) {
+            throw new Error('Respuesta no válida');
+        }
+        const config = await response.json();
+        if (typeof config.rate === 'number') {
+            audioConfig.rate = config.rate;
+        }
+        if (typeof config.pitch === 'number') {
+            audioConfig.pitch = config.pitch;
+        }
+        if (typeof config.voice === 'string') {
+            audioConfig.voice = config.voice;
+        }
+    } catch (error) {
+        console.warn('No se pudo cargar la configuración de audio, usando valores por defecto', error);
+    }
+}
 
 function actualizarFechaHora() {
     const ahora = new Date();
@@ -90,14 +117,28 @@ function hablar(texto) {
     
     // Configurar voz en español
     const voces = synth.getVoices();
-    const vozEspanol = voces.find(v => v.lang.startsWith('es'));
-    if (vozEspanol) {
-        utterance.voice = vozEspanol;
+
+    if (audioConfig.voice) {
+        const vozConfigurada = voces.find(v =>
+            v.name === audioConfig.voice || v.lang === audioConfig.voice
+        );
+        if (vozConfigurada) {
+            utterance.voice = vozConfigurada;
+        }
+    }
+
+    if (!utterance.voice) {
+        const vozEspanol = voces.find(v => v.lang && v.lang.toLowerCase().startsWith('es'));
+        if (vozEspanol) {
+            utterance.voice = vozEspanol;
+        } else if (voces.length > 0) {
+            utterance.voice = voces[0];
+        }
     }
     
-    utterance.lang = 'es-ES';
-    utterance.rate = 0.9; // Velocidad ligeramente más lenta
-    utterance.pitch = 1;
+    utterance.lang = (utterance.voice && utterance.voice.lang) || 'es-ES';
+    utterance.rate = typeof audioConfig.rate === 'number' ? audioConfig.rate : 0.9;
+    utterance.pitch = typeof audioConfig.pitch === 'number' ? audioConfig.pitch : 1;
     utterance.volume = 1;
     
     synth.speak(utterance);
