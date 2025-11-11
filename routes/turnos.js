@@ -7,6 +7,84 @@ const path = require('path');
 const db = require('../database/db');
 const { verificarToken, verificarRol } = require('../middleware/auth');
 
+function obtenerMedicos() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT id, nombre_completo, username FROM usuarios WHERE rol = "medico"',
+      (err, rows) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(rows || []);
+      }
+    );
+  });
+}
+
+function normalizarTexto(texto = '') {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .toUpperCase()
+    .trim();
+}
+
+function obtenerMedicoDesdeEspecialista(especialistaRaw, medicos = []) {
+  if (!especialistaRaw) {
+    return null;
+  }
+
+  const especialistaNorm = normalizarTexto(especialistaRaw);
+  if (!especialistaNorm) {
+    return null;
+  }
+
+  const tokensEspecialista = especialistaNorm.split(' ').filter(Boolean);
+  const tokenPrincipal = tokensEspecialista[0] || '';
+
+  const coincidenciaCompleta = medicos.find((medico) => {
+    const nombreNorm = normalizarTexto(medico.nombre_completo || '');
+    const tokensMedico = nombreNorm.split(' ').filter(Boolean);
+    const coincidencias = tokensEspecialista.filter((token) =>
+      tokensMedico.includes(token)
+    );
+
+    if (tokensEspecialista.length >= 2) {
+      return coincidencias.length >= 2;
+    }
+
+    return coincidencias.length >= 1;
+  });
+
+  if (coincidenciaCompleta) {
+    return coincidenciaCompleta;
+  }
+
+  if (tokenPrincipal) {
+    const coincidenciaApellido = medicos.find((medico) => {
+      const tokensMedico = normalizarTexto(medico.nombre_completo || '')
+        .split(' ')
+        .filter(Boolean);
+      return tokensMedico.includes(tokenPrincipal);
+    });
+
+    if (coincidenciaApellido) {
+      return coincidenciaApellido;
+    }
+
+    const coincidenciaUsuario = medicos.find((medico) =>
+      normalizarTexto(medico.username || '').includes(tokenPrincipal)
+    );
+
+    if (coincidenciaUsuario) {
+      return coincidenciaUsuario;
+    }
+  }
+
+  return null;
+}
+
 // Configurar multer para subida de archivos
 const upload = multer({
   dest: 'uploads/',
@@ -111,9 +189,10 @@ router.post('/upload-pdf', verificarToken, verificarRol('admin'), upload.single(
 
     const dataBuffer = fs.readFileSync(req.file.path);
     const pdfData = await pdf(dataBuffer);
+    const medicos = await obtenerMedicos();
     
     // Parsear el texto del PDF
-    const turnos = parsearTurnosPDF(pdfData.text);
+    const turnos = parsearTurnosPDF(pdfData.text, medicos);
     
     if (turnos.length === 0) {
       fs.unlinkSync(req.file.path);
@@ -161,7 +240,7 @@ router.post('/upload-pdf', verificarToken, verificarRol('admin'), upload.single(
 });
 
 // Función para parsear turnos del PDF - Formato Hospital Dr. Alfredo Saintout
-function parsearTurnosPDF(texto) {
+function parsearTurnosPDF(texto, medicos = []) {
   const turnos = [];
   
   // Debug: mostrar el texto extraído del PDF
@@ -280,11 +359,14 @@ function parsearTurnosPDF(texto) {
       const horaFormateada = `${hora.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}`;
       
       // Mapear especialista a médico_id
-      let medicoId = 2; // Dr. García por defecto
-      if (especialista && (especialista.includes('STADLER') || especialista.includes('stadler'))) {
-        medicoId = 9; // Karina Stadler (ID 9)
-      } else if (especialista && (especialista.includes('BARBA') || especialista.includes('barba') || especialista.includes('MATIAS'))) {
-        medicoId = 11; // Matías Barba (ID 11)
+      let medicoId = null;
+      const medicoDetectado = obtenerMedicoDesdeEspecialista(especialista, medicos);
+
+      if (medicoDetectado) {
+        medicoId = medicoDetectado.id;
+      } else {
+        console.warn(`No se encontró médico para el especialista "${especialista}". Turno pendiente de asignación manual.`);
+        continue;
       }
       
       // Debug: mostrar el mapeo
