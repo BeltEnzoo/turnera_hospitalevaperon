@@ -115,11 +115,11 @@ function reproducirLlamado(llamado) {
 function hablar(texto) {
     const utterance = new SpeechSynthesisUtterance(texto);
     
-    // Forzar idioma español
-    utterance.lang = 'es-ES';
-    
     // Configurar voz en español
     const voces = synth.getVoices();
+    
+    // Debug: mostrar todas las voces disponibles
+    console.log('Voces disponibles:', voces.map(v => `${v.name} (${v.lang})`));
 
     if (audioConfig.voice) {
         const vozConfigurada = voces.find(v =>
@@ -127,28 +127,49 @@ function hablar(texto) {
         );
         if (vozConfigurada) {
             utterance.voice = vozConfigurada;
+            console.log('Usando voz configurada:', vozConfigurada.name, vozConfigurada.lang);
         }
     }
 
     if (!utterance.voice) {
-        // Buscar voz en español de manera más agresiva
-        const vozEspanol = voces.find(v => {
+        // Buscar voz en español de manera más agresiva (priorizar es-419, luego es-ES, luego cualquier es)
+        let vozEspanol = voces.find(v => {
             const lang = (v.lang || '').toLowerCase();
-            const name = (v.name || '').toLowerCase();
-            return lang.startsWith('es') || 
-                   name.includes('spanish') || 
-                   name.includes('español') ||
-                   name.includes('es');
+            return lang === 'es-419' || lang === 'es-ar' || lang === 'es-latn';
         });
+        
+        if (!vozEspanol) {
+            vozEspanol = voces.find(v => {
+                const lang = (v.lang || '').toLowerCase();
+                return lang === 'es-es' || lang === 'es';
+            });
+        }
+        
+        if (!vozEspanol) {
+            vozEspanol = voces.find(v => {
+                const lang = (v.lang || '').toLowerCase();
+                const name = (v.name || '').toLowerCase();
+                return lang.startsWith('es') || 
+                       name.includes('spanish') || 
+                       name.includes('español');
+            });
+        }
+        
         if (vozEspanol) {
             utterance.voice = vozEspanol;
+            console.log('Usando voz en español encontrada:', vozEspanol.name, vozEspanol.lang);
+        } else {
+            console.warn('No se encontró voz en español, usando voz por defecto');
         }
     }
     
+    // Forzar idioma español
+    utterance.lang = (utterance.voice && utterance.voice.lang) || 'es-ES';
     utterance.rate = typeof audioConfig.rate === 'number' ? audioConfig.rate : 0.9;
     utterance.pitch = typeof audioConfig.pitch === 'number' ? audioConfig.pitch : 1;
     utterance.volume = 1;
     
+    console.log('Reproduciendo:', texto, 'con voz:', utterance.voice ? utterance.voice.name : 'ninguna', 'idioma:', utterance.lang);
     synth.speak(utterance);
 }
 
