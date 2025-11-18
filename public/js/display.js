@@ -143,9 +143,10 @@ function reproducirLlamado(llamado) {
 }
 
 function hablar(texto) {
-    // Agregar un espacio al inicio para evitar que espeak-ng corte la primera palabra
+    // Agregar un punto y espacio al inicio para evitar que espeak-ng corte la primera palabra
     // Es un workaround para un bug conocido de espeak-ng/speech-dispatcher
-    const textoConPrefijo = ' ' + texto;
+    // El punto ayuda a "anclar" el inicio del texto
+    const textoConPrefijo = '. ' + texto;
     const utterance = new SpeechSynthesisUtterance(textoConPrefijo);
     
     // Si las voces no están cargadas, intentar cargarlas ahora
