@@ -1,0 +1,12 @@
+{
+  "audio": {
+    "rate": 0.9,
+    "pitch": 1,
+    "voice": ""
+  },
+  "horarios": {
+    "horaInicio": "08:00",
+    "horaFin": "17:00",
+    "intervalo": 30
+  }
+}

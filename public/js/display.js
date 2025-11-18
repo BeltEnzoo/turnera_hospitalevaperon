@@ -143,7 +143,10 @@ function reproducirLlamado(llamado) {
 }
 
 function hablar(texto) {
-    const utterance = new SpeechSynthesisUtterance(texto);
+    // Agregar un espacio al inicio para evitar que espeak-ng corte la primera palabra
+    // Es un workaround para un bug conocido de espeak-ng/speech-dispatcher
+    const textoConPrefijo = ' ' + texto;
+    const utterance = new SpeechSynthesisUtterance(textoConPrefijo);
     
     // Si las voces no están cargadas, intentar cargarlas ahora
     if (!vocesCargadas || vocesDisponibles.length === 0) {
@@ -206,9 +209,11 @@ function hablar(texto) {
         }
     }
     
-    // Forzar idioma español
-    utterance.lang = (utterance.voice && utterance.voice.lang) || 'es-ES';
-    utterance.rate = typeof audioConfig.rate === 'number' ? audioConfig.rate : 0.9;
+    // Forzar idioma español latinoamericano si está disponible
+    utterance.lang = (utterance.voice && utterance.voice.lang) || 'es-419';
+    
+    // Velocidad más lenta (0.7 aproximadamente equivale a -30 en spd-say)
+    utterance.rate = typeof audioConfig.rate === 'number' ? (audioConfig.rate * 0.78) : 0.7;
     utterance.pitch = typeof audioConfig.pitch === 'number' ? audioConfig.pitch : 1;
     utterance.volume = 1;
     
