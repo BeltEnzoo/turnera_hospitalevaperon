@@ -115,6 +115,9 @@ function reproducirLlamado(llamado) {
 function hablar(texto) {
     const utterance = new SpeechSynthesisUtterance(texto);
     
+    // Forzar idioma español
+    utterance.lang = 'es-ES';
+    
     // Configurar voz en español
     const voces = synth.getVoices();
 
@@ -128,15 +131,20 @@ function hablar(texto) {
     }
 
     if (!utterance.voice) {
-        const vozEspanol = voces.find(v => v.lang && v.lang.toLowerCase().startsWith('es'));
+        // Buscar voz en español de manera más agresiva
+        const vozEspanol = voces.find(v => {
+            const lang = (v.lang || '').toLowerCase();
+            const name = (v.name || '').toLowerCase();
+            return lang.startsWith('es') || 
+                   name.includes('spanish') || 
+                   name.includes('español') ||
+                   name.includes('es');
+        });
         if (vozEspanol) {
             utterance.voice = vozEspanol;
-        } else if (voces.length > 0) {
-            utterance.voice = voces[0];
         }
     }
     
-    utterance.lang = (utterance.voice && utterance.voice.lang) || 'es-ES';
     utterance.rate = typeof audioConfig.rate === 'number' ? audioConfig.rate : 0.9;
     utterance.pitch = typeof audioConfig.pitch === 'number' ? audioConfig.pitch : 1;
     utterance.volume = 1;
