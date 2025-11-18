@@ -135,7 +135,7 @@ function reproducirLlamado(llamado) {
     }
     
     // Crear el mensaje de voz
-    const texto = `${llamado.paciente_nombre}, ${consultorioTexto}`;
+    const texto = `Paciente ${llamado.paciente_nombre}, ${consultorioTexto}`;
     
     // Repetir el llamado 2 veces
     setTimeout(() => hablar(texto), 500);
