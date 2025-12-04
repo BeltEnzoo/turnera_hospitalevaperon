@@ -4,6 +4,8 @@ let synth = window.speechSynthesis;
 let ultimoLlamado = null;
 let vocesDisponibles = [];
 let vocesCargadas = false;
+let colaLlamados = [];
+let reproduciendoLlamado = false;
 let audioConfig = {
     rate: 0.9,
     pitch: 1,
@@ -123,9 +125,6 @@ function mostrarLlamado(llamado) {
 }
 
 function reproducirLlamado(llamado) {
-    // Cancelar cualquier síntesis en progreso
-    synth.cancel();
-    
     // Formatear el consultorio para el audio
     let consultorioTexto = llamado.consultorio;
     
@@ -137,89 +136,137 @@ function reproducirLlamado(llamado) {
     // Crear el mensaje de voz
     const texto = `Paciente ${llamado.paciente_nombre}, ${consultorioTexto}`;
     
-    // Repetir el llamado 2 veces
-    setTimeout(() => hablar(texto), 500);
-    setTimeout(() => hablar(texto), 4000);
+    // Agregar a la cola en lugar de cancelar el actual
+    colaLlamados.push({
+        texto: texto,
+        timestamp: Date.now()
+    });
+    
+    // Si no se está reproduciendo nada, iniciar la reproducción de la cola
+    if (!reproduciendoLlamado) {
+        procesarColaLlamados();
+    }
+}
+
+function procesarColaLlamados() {
+    if (colaLlamados.length === 0) {
+        reproduciendoLlamado = false;
+        return;
+    }
+    
+    reproduciendoLlamado = true;
+    const llamado = colaLlamados.shift(); // Tomar el primer llamado de la cola
+    
+    // Reproducir el llamado 2 veces en secuencia
+    hablar(llamado.texto)
+        .then(() => {
+            // Esperar un momento antes de repetir
+            return new Promise(resolve => setTimeout(resolve, 1000));
+        })
+        .then(() => {
+            // Segunda reproducción
+            return hablar(llamado.texto);
+        })
+        .then(() => {
+            // Esperar un momento antes del siguiente llamado
+            return new Promise(resolve => setTimeout(resolve, 1000));
+        })
+        .then(() => {
+            // Procesar el siguiente llamado en la cola
+            procesarColaLlamados();
+        });
 }
 
 function hablar(texto) {
-    // Agregar un punto y espacio al inicio para evitar que espeak-ng corte la primera palabra
-    // Es un workaround para un bug conocido de espeak-ng/speech-dispatcher
-    // El punto ayuda a "anclar" el inicio del texto
-    const textoConPrefijo = '. ' + texto;
-    const utterance = new SpeechSynthesisUtterance(textoConPrefijo);
-    
-    // Si las voces no están cargadas, intentar cargarlas ahora
-    if (!vocesCargadas || vocesDisponibles.length === 0) {
-        cargarVoces();
-    }
-    
-    // Usar las voces cargadas
-    const voces = vocesDisponibles.length > 0 ? vocesDisponibles : synth.getVoices();
-    
-    // Debug: mostrar todas las voces disponibles
-    if (voces.length > 0) {
-        console.log('Voces disponibles:', voces.length, voces.map(v => `${v.name} (${v.lang})`));
-    } else {
-        console.warn('No hay voces disponibles todavía');
-    }
-
-    if (audioConfig.voice && voces.length > 0) {
-        const vozConfigurada = voces.find(v =>
-            v.name === audioConfig.voice || v.lang === audioConfig.voice
-        );
-        if (vozConfigurada) {
-            utterance.voice = vozConfigurada;
-            console.log('Usando voz configurada:', vozConfigurada.name, vozConfigurada.lang);
-        }
-    }
-
-    if (!utterance.voice && voces.length > 0) {
-        // Buscar voz en español de manera más agresiva (priorizar es-419, luego es-ES, luego cualquier es)
-        let vozEspanol = voces.find(v => {
-            const lang = (v.lang || '').toLowerCase();
-            return lang === 'es-419' || lang === 'es-ar' || lang === 'es-latn';
-        });
+    return new Promise((resolve) => {
+        // Agregar un punto y espacio al inicio para evitar que espeak-ng corte la primera palabra
+        // Es un workaround para un bug conocido de espeak-ng/speech-dispatcher
+        // El punto ayuda a "anclar" el inicio del texto
+        const textoConPrefijo = '. ' + texto;
+        const utterance = new SpeechSynthesisUtterance(textoConPrefijo);
         
-        if (!vozEspanol) {
-            vozEspanol = voces.find(v => {
-                const lang = (v.lang || '').toLowerCase();
-                return lang === 'es-es' || lang === 'es';
-            });
+        // Si las voces no están cargadas, intentar cargarlas ahora
+        if (!vocesCargadas || vocesDisponibles.length === 0) {
+            cargarVoces();
         }
         
-        if (!vozEspanol) {
-            vozEspanol = voces.find(v => {
-                const lang = (v.lang || '').toLowerCase();
-                const name = (v.name || '').toLowerCase();
-                return lang.startsWith('es') || 
-                       name.includes('spanish') || 
-                       name.includes('español');
-            });
-        }
+        // Usar las voces cargadas
+        const voces = vocesDisponibles.length > 0 ? vocesDisponibles : synth.getVoices();
         
-        if (vozEspanol) {
-            utterance.voice = vozEspanol;
-            console.log('Usando voz en español encontrada:', vozEspanol.name, vozEspanol.lang);
+        // Debug: mostrar todas las voces disponibles
+        if (voces.length > 0) {
+            console.log('Voces disponibles:', voces.length, voces.map(v => `${v.name} (${v.lang})`));
         } else {
-            console.warn('No se encontró voz en español, usando voz por defecto');
-            // Usar la primera voz disponible como fallback
-            if (voces.length > 0) {
-                utterance.voice = voces[0];
+            console.warn('No hay voces disponibles todavía');
+        }
+
+        if (audioConfig.voice && voces.length > 0) {
+            const vozConfigurada = voces.find(v =>
+                v.name === audioConfig.voice || v.lang === audioConfig.voice
+            );
+            if (vozConfigurada) {
+                utterance.voice = vozConfigurada;
+                console.log('Usando voz configurada:', vozConfigurada.name, vozConfigurada.lang);
             }
         }
-    }
-    
-    // Forzar idioma español latinoamericano si está disponible
-    utterance.lang = (utterance.voice && utterance.voice.lang) || 'es-419';
-    
-    // Velocidad más lenta (0.7 aproximadamente equivale a -30 en spd-say)
-    utterance.rate = typeof audioConfig.rate === 'number' ? (audioConfig.rate * 0.78) : 0.7;
-    utterance.pitch = typeof audioConfig.pitch === 'number' ? audioConfig.pitch : 1;
-    utterance.volume = 1;
-    
-    console.log('Reproduciendo:', texto, 'con voz:', utterance.voice ? utterance.voice.name : 'ninguna', 'idioma:', utterance.lang);
-    synth.speak(utterance);
+
+        if (!utterance.voice && voces.length > 0) {
+            // Buscar voz en español de manera más agresiva (priorizar es-419, luego es-ES, luego cualquier es)
+            let vozEspanol = voces.find(v => {
+                const lang = (v.lang || '').toLowerCase();
+                return lang === 'es-419' || lang === 'es-ar' || lang === 'es-latn';
+            });
+            
+            if (!vozEspanol) {
+                vozEspanol = voces.find(v => {
+                    const lang = (v.lang || '').toLowerCase();
+                    return lang === 'es-es' || lang === 'es';
+                });
+            }
+            
+            if (!vozEspanol) {
+                vozEspanol = voces.find(v => {
+                    const lang = (v.lang || '').toLowerCase();
+                    const name = (v.name || '').toLowerCase();
+                    return lang.startsWith('es') || 
+                           name.includes('spanish') || 
+                           name.includes('español');
+                });
+            }
+            
+            if (vozEspanol) {
+                utterance.voice = vozEspanol;
+                console.log('Usando voz en español encontrada:', vozEspanol.name, vozEspanol.lang);
+            } else {
+                console.warn('No se encontró voz en español, usando voz por defecto');
+                // Usar la primera voz disponible como fallback
+                if (voces.length > 0) {
+                    utterance.voice = voces[0];
+                }
+            }
+        }
+        
+        // Forzar idioma español latinoamericano si está disponible
+        utterance.lang = (utterance.voice && utterance.voice.lang) || 'es-419';
+        
+        // Velocidad más lenta (0.7 aproximadamente equivale a -30 en spd-say)
+        utterance.rate = typeof audioConfig.rate === 'number' ? (audioConfig.rate * 0.78) : 0.7;
+        utterance.pitch = typeof audioConfig.pitch === 'number' ? audioConfig.pitch : 1;
+        utterance.volume = 1;
+        
+        // Configurar eventos para saber cuándo termina
+        utterance.onend = () => {
+            resolve();
+        };
+        
+        utterance.onerror = (event) => {
+            console.error('Error en síntesis de voz:', event);
+            resolve(); // Continuar aunque haya error
+        };
+        
+        console.log('Reproduciendo:', texto, 'con voz:', utterance.voice ? utterance.voice.name : 'ninguna', 'idioma:', utterance.lang);
+        synth.speak(utterance);
+    });
 }
 
 async function cargarHistorial() {
