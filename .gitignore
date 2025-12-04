@@ -4,5 +4,6 @@ database/*.db
 uploads/*.pdf
 *.log
 .DS_Store
+public/audio/*.mp3
 
 

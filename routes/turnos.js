@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const db = require('../database/db');
 const { verificarToken, verificarRol } = require('../middleware/auth');
+const { generarAudio } = require('../services/ttsService');
 
 function obtenerMedicos() {
   return new Promise((resolve, reject) => {
@@ -398,7 +399,7 @@ function parsearTurnosPDF(texto, medicos = []) {
 }
 
 // Llamar a un paciente
-router.post('/:id/llamar', verificarToken, verificarRol('medico'), (req, res) => {
+router.post('/:id/llamar', verificarToken, verificarRol('medico'), async (req, res) => {
   const turnoId = req.params.id;
   const medicoId = req.usuario.id;
   const io = req.app.get('io');
@@ -410,7 +411,7 @@ router.post('/:id/llamar', verificarToken, verificarRol('medico'), (req, res) =>
      LEFT JOIN usuarios u ON t.medico_id = u.id 
      WHERE t.id = ? AND t.medico_id = ?`,
     [turnoId, medicoId],
-    (err, turno) => {
+    async (err, turno) => {
       if (err) {
         return res.status(500).json({ error: 'Error al obtener turno' });
       }
@@ -426,7 +427,7 @@ router.post('/:id/llamar', verificarToken, verificarRol('medico'), (req, res) =>
       db.run(
         'UPDATE turnos SET estado = ?, llamado_at = CURRENT_TIMESTAMP WHERE id = ?',
         ['llamado', turnoId],
-        (err) => {
+        async (err) => {
           if (err) {
             return res.status(500).json({ error: 'Error al actualizar turno' });
           }
@@ -437,12 +438,37 @@ router.post('/:id/llamar', verificarToken, verificarRol('medico'), (req, res) =>
             [turnoId, medicoId, turno.paciente_nombre, consultorioMostrar]
           );
 
+          // Generar texto del anuncio
+          const textoAnuncio = `Paciente ${turno.paciente_nombre}, ${consultorioMostrar}`;
+
+          // Generar audio con Google Cloud TTS
+          let audioUrl = null;
+          try {
+            const audioResultado = await generarAudio(textoAnuncio, {
+              languageCode: 'es-AR',
+              voiceName: 'es-AR-Wavenet-A',
+              speakingRate: 0.9
+            });
+            
+            if (audioResultado) {
+              audioUrl = audioResultado.url;
+              console.log(`✅ Audio generado para llamado: ${audioUrl}`);
+            } else {
+              console.warn('⚠️ No se pudo generar audio, se usará fallback (voz del navegador)');
+            }
+          } catch (error) {
+            console.error('❌ Error generando audio:', error.message);
+            // Continuar sin audio, el display usará fallback
+          }
+
           // Emitir evento por Socket.IO al display público
           const llamado = {
             paciente_nombre: turno.paciente_nombre,
             consultorio: consultorioMostrar,
             numero_turno: turno.numero_turno,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            audioUrl: audioUrl, // URL del audio generado (null si falló)
+            textoAnuncio: textoAnuncio // Texto para fallback
           };
 
           io.to('display-room').emit('nuevo-llamado', llamado);

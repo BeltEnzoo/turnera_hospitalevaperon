@@ -31,6 +31,7 @@ const displayRoutes = require('./routes/display');
 const configRoutes = require('./routes/config');
 const databaseRoutes = require('./routes/database');
 const testRoutes = require('./routes/test');
+const ttsRoutes = require('./routes/tts');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/turnos', turnoRoutes);
@@ -39,6 +40,7 @@ app.use('/api/display', displayRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/database', databaseRoutes);
 app.use('/api/test', testRoutes);
+app.use('/api/tts', ttsRoutes);
 
 // Ruta temporal para estadísticas de reportes SIN autenticación
 app.get('/api/reportes-stats', (req, res) => {

@@ -20,7 +20,8 @@
     "pdf-parse": "^1.1.1",
     "sqlite3": "^5.1.6",
     "cors": "^2.8.5",
-    "dotenv": "^16.0.3"
+    "dotenv": "^16.0.3",
+    "@google-cloud/text-to-speech": "^5.0.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

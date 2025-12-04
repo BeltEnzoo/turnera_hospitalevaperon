@@ -133,12 +133,13 @@ function reproducirLlamado(llamado) {
         consultorioTexto = `Consultorio ${consultorioTexto}`;
     }
     
-    // Crear el mensaje de voz
-    const texto = `Paciente ${llamado.paciente_nombre}, ${consultorioTexto}`;
+    // Crear el mensaje de voz (para fallback)
+    const texto = llamado.textoAnuncio || `Paciente ${llamado.paciente_nombre}, ${consultorioTexto}`;
     
     // Agregar a la cola en lugar de cancelar el actual
     colaLlamados.push({
         texto: texto,
+        audioUrl: llamado.audioUrl || null, // URL del audio generado (si existe)
         timestamp: Date.now()
     });
     
@@ -146,6 +147,27 @@ function reproducirLlamado(llamado) {
     if (!reproduciendoLlamado) {
         procesarColaLlamados();
     }
+}
+
+function reproducirAudioDesdeURL(url) {
+    return new Promise((resolve, reject) => {
+        const audio = new Audio(url);
+        
+        audio.onended = () => {
+            resolve();
+        };
+        
+        audio.onerror = (error) => {
+            console.error('Error reproduciendo audio:', error);
+            reject(error);
+        };
+        
+        // Reproducir audio
+        audio.play().catch(error => {
+            console.error('Error iniciando reproducción de audio:', error);
+            reject(error);
+        });
+    });
 }
 
 function procesarColaLlamados() {
@@ -157,15 +179,28 @@ function procesarColaLlamados() {
     reproduciendoLlamado = true;
     const llamado = colaLlamados.shift(); // Tomar el primer llamado de la cola
     
+    // Función para reproducir el llamado (una vez)
+    const reproducirUnaVez = () => {
+        // Si hay audio URL generado, usarlo (más natural)
+        if (llamado.audioUrl) {
+            console.log('🎵 Reproduciendo audio generado:', llamado.audioUrl);
+            return reproducirAudioDesdeURL(llamado.audioUrl);
+        } else {
+            // Fallback: usar voz del navegador
+            console.log('🔊 Usando voz del navegador (fallback)');
+            return hablar(llamado.texto);
+        }
+    };
+    
     // Reproducir el llamado 2 veces en secuencia
-    hablar(llamado.texto)
+    reproducirUnaVez()
         .then(() => {
             // Esperar un momento antes de repetir
             return new Promise(resolve => setTimeout(resolve, 1000));
         })
         .then(() => {
             // Segunda reproducción
-            return hablar(llamado.texto);
+            return reproducirUnaVez();
         })
         .then(() => {
             // Esperar un momento antes del siguiente llamado
@@ -174,6 +209,13 @@ function procesarColaLlamados() {
         .then(() => {
             // Procesar el siguiente llamado en la cola
             procesarColaLlamados();
+        })
+        .catch((error) => {
+            console.error('Error en reproducción, continuando con siguiente:', error);
+            // Continuar con el siguiente llamado aunque haya error
+            setTimeout(() => {
+                procesarColaLlamados();
+            }, 500);
         });
 }
 
