@@ -14,8 +14,16 @@ function initializeTTS() {
   // Solo inicializar si hay credenciales configuradas
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     try {
+      const keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+      
+      // Verificar que el archivo existe
+      if (!fs.existsSync(keyFilename)) {
+        console.error('❌ Archivo de credenciales no encontrado:', keyFilename);
+        return false;
+      }
+      
       const config = {
-        keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS
+        keyFilename: keyFilename
       };
       
       // Si hay project ID configurado, agregarlo
@@ -25,6 +33,7 @@ function initializeTTS() {
       
       ttsClient = new textToSpeech.TextToSpeechClient(config);
       console.log('✅ Google Cloud TTS inicializado correctamente');
+      console.log('   Archivo de credenciales:', keyFilename);
       return true;
     } catch (error) {
       console.error('❌ Error inicializando Google Cloud TTS:', error.message);
@@ -52,13 +61,20 @@ async function generarAudio(texto, opciones = {}) {
   }
 
   try {
+    // Configuración de voz - usar solo languageCode y dejar que Google elija la mejor voz
+    const voiceConfig = {
+      languageCode: opciones.languageCode || 'es-AR', // Español argentino
+      ssmlGender: 'FEMALE'
+    };
+    
+    // Si se especifica un nombre de voz, agregarlo (pero no es obligatorio)
+    if (opciones.voiceName) {
+      voiceConfig.name = opciones.voiceName;
+    }
+    
     const configuracion = {
       input: { text: texto },
-      voice: {
-        languageCode: opciones.languageCode || 'es-AR', // Español argentino
-        name: opciones.voiceName || 'es-AR-Wavenet-A', // Voz natural argentina
-        ssmlGender: 'FEMALE'
-      },
+      voice: voiceConfig,
       audioConfig: {
         audioEncoding: 'MP3',
         speakingRate: opciones.speakingRate || 0.9, // Velocidad normal
