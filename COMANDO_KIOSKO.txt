@@ -1,0 +1,3 @@
+chromium --kiosk --app=http://localhost:3000/display.html --noerrdialogs --disable-infobars --password-store=basic --check-for-update-interval=31536000 --autoplay-policy=no-user-gesture-required --enable-speech-dispatcher
+
+

@@ -31,6 +31,32 @@ function normalizarTexto(texto = '') {
     .trim();
 }
 
+// Normalizar nombre para pronunciación correcta (evitar deletreo)
+function normalizarNombreParaTTS(nombre = '') {
+  if (!nombre) return nombre;
+  
+  // Convertir a minúsculas primero
+  let normalizado = nombre.toLowerCase().trim();
+  
+  // Dividir en palabras (apellidos y nombres)
+  const palabras = normalizado.split(/\s+/);
+  
+  // Capitalizar primera letra de cada palabra (formato título)
+  const palabrasCapitalizadas = palabras.map(palabra => {
+    if (palabra.length === 0) return palabra;
+    // Mantener la primera letra en mayúscula y el resto en minúscula
+    return palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase();
+  });
+  
+  // Unir las palabras con espacios
+  normalizado = palabrasCapitalizadas.join(' ');
+  
+  // Asegurar que no haya espacios múltiples
+  normalizado = normalizado.replace(/\s+/g, ' ').trim();
+  
+  return normalizado;
+}
+
 function obtenerMedicoDesdeEspecialista(especialistaRaw, medicos = []) {
   if (!especialistaRaw) {
     return null;
@@ -438,15 +464,17 @@ router.post('/:id/llamar', verificarToken, verificarRol('medico'), async (req, r
             [turnoId, medicoId, turno.paciente_nombre, consultorioMostrar]
           );
 
+          // Normalizar nombre del paciente para mejor pronunciación (evitar deletreo)
+          const nombreNormalizado = normalizarNombreParaTTS(turno.paciente_nombre);
+          
           // Generar texto del anuncio
-          const textoAnuncio = `Paciente ${turno.paciente_nombre}, ${consultorioMostrar}`;
+          const textoAnuncio = `Paciente ${nombreNormalizado}, ${consultorioMostrar}`;
 
           // Generar audio con Google Cloud TTS
           let audioUrl = null;
           try {
             const audioResultado = await generarAudio(textoAnuncio, {
               languageCode: 'es-AR',
-              voiceName: 'es-AR-Wavenet-A',
               speakingRate: 0.9
             });
             
