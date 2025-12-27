@@ -48,6 +48,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     await cargarAudioConfig();
     conectarSocket();
     cargarHistorial();
+    
+    // Habilitar audio automáticamente: hacer una prueba silenciosa al cargar
+    // Esto permite que Chromium reproduzca audio sin interacción del usuario
+    setTimeout(() => {
+        const testUtterance = new SpeechSynthesisUtterance('');
+        testUtterance.volume = 0;
+        testUtterance.rate = 0.1;
+        synth.speak(testUtterance);
+        synth.cancel(); // Cancelar inmediatamente, solo queríamos "activar" el audio
+        console.log('✅ Audio habilitado para reproducción automática');
+    }, 2000);
 });
 
 async function cargarAudioConfig() {
@@ -153,20 +164,38 @@ function reproducirAudioDesdeURL(url) {
     return new Promise((resolve, reject) => {
         const audio = new Audio(url);
         
+        // Configurar para permitir reproducción automática
+        audio.autoplay = false; // No usar autoplay, usar play() explícito
+        
         audio.onended = () => {
+            console.log('✅ Audio MP3 reproducido completamente');
             resolve();
         };
         
         audio.onerror = (error) => {
-            console.error('Error reproduciendo audio:', error);
+            console.error('❌ Error reproduciendo audio MP3:', error);
             reject(error);
         };
         
-        // Reproducir audio
-        audio.play().catch(error => {
-            console.error('Error iniciando reproducción de audio:', error);
-            reject(error);
-        });
+        audio.oncanplaythrough = () => {
+            console.log('✅ Audio MP3 listo para reproducir:', url);
+        };
+        
+        // Intentar reproducir
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => {
+                    console.log('✅ Reproducción de audio MP3 iniciada');
+                })
+                .catch(error => {
+                    console.error('❌ Error iniciando reproducción de audio MP3:', error);
+                    // Si falla el audio MP3, usar fallback de voz
+                    console.log('🔄 Cambiando a fallback de síntesis de voz...');
+                    reject(error);
+                });
+        }
     });
 }
 
@@ -181,10 +210,15 @@ function procesarColaLlamados() {
     
     // Función para reproducir el llamado (una vez)
     const reproducirUnaVez = () => {
-        // Si hay audio URL generado, usarlo (más natural)
+        // Si hay audio URL generado, intentar usarlo (más natural)
         if (llamado.audioUrl) {
-            console.log('🎵 Reproduciendo audio generado:', llamado.audioUrl);
-            return reproducirAudioDesdeURL(llamado.audioUrl);
+            console.log('🎵 Intentando reproducir audio generado:', llamado.audioUrl);
+            return reproducirAudioDesdeURL(llamado.audioUrl)
+                .catch((error) => {
+                    // Si falla el audio MP3, usar fallback de síntesis de voz
+                    console.warn('⚠️ Error reproduciendo audio MP3, usando fallback de síntesis de voz:', error);
+                    return hablar(llamado.texto);
+                });
         } else {
             // Fallback: usar voz del navegador
             console.log('🔊 Usando voz del navegador (fallback)');
@@ -220,12 +254,14 @@ function procesarColaLlamados() {
 }
 
 function hablar(texto) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         // Agregar un punto y espacio al inicio para evitar que espeak-ng corte la primera palabra
         // Es un workaround para un bug conocido de espeak-ng/speech-dispatcher
         // El punto ayuda a "anclar" el inicio del texto
         const textoConPrefijo = '. ' + texto;
         const utterance = new SpeechSynthesisUtterance(textoConPrefijo);
+        
+        console.log('🔊 Iniciando síntesis de voz para:', textoConPrefijo);
         
         // Si las voces no están cargadas, intentar cargarlas ahora
         if (!vocesCargadas || vocesDisponibles.length === 0) {
@@ -302,12 +338,37 @@ function hablar(texto) {
         };
         
         utterance.onerror = (event) => {
-            console.error('Error en síntesis de voz:', event);
-            resolve(); // Continuar aunque haya error
+            console.error('❌ Error en síntesis de voz:', event);
+            console.error('   Error type:', event.error);
+            console.error('   Char index:', event.charIndex);
+            reject(event); // Rechazar para que se maneje el error
+        };
+        
+        // También manejar cuando no se puede iniciar
+        utterance.onstart = () => {
+            console.log('✅ Síntesis de voz iniciada correctamente');
         };
         
         console.log('Reproduciendo:', texto, 'con voz:', utterance.voice ? utterance.voice.name : 'ninguna', 'idioma:', utterance.lang);
-        synth.speak(utterance);
+        
+        // Verificar si el navegador soporta síntesis de voz
+        if (!synth) {
+            console.error('❌ SpeechSynthesis no está disponible');
+            reject(new Error('SpeechSynthesis no disponible'));
+            return;
+        }
+        
+        // Verificar si está hablando antes de iniciar (cancelar cualquier reproducción previa)
+        if (synth.speaking) {
+            console.log('⚠️ Ya hay una voz hablando, cancelando...');
+            synth.cancel();
+            // Pequeño delay antes de continuar
+            setTimeout(() => {
+                synth.speak(utterance);
+            }, 100);
+        } else {
+            synth.speak(utterance);
+        }
     });
 }
 
