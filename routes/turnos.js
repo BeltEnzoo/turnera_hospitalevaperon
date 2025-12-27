@@ -470,38 +470,44 @@ router.post('/:id/llamar', verificarToken, verificarRol('medico'), async (req, r
           // Generar texto del anuncio
           const textoAnuncio = `Paciente ${nombreNormalizado}, ${consultorioMostrar}`;
 
-          // Generar audio con Google Cloud TTS
-          let audioUrl = null;
-          try {
-            const audioResultado = await generarAudio(textoAnuncio, {
-              languageCode: 'es-AR',
-              speakingRate: 0.9
-            });
-            
-            if (audioResultado) {
-              audioUrl = audioResultado.url;
-              console.log(`✅ Audio generado para llamado: ${audioUrl}`);
-            } else {
-              console.warn('⚠️ No se pudo generar audio, se usará fallback (voz del navegador)');
-            }
-          } catch (error) {
-            console.error('❌ Error generando audio:', error.message);
-            // Continuar sin audio, el display usará fallback
-          }
-
-          // Emitir evento por Socket.IO al display público
+          // Emitir evento por Socket.IO al display público INMEDIATAMENTE (sin esperar audio)
           const llamado = {
             paciente_nombre: turno.paciente_nombre,
             consultorio: consultorioMostrar,
             numero_turno: turno.numero_turno,
             timestamp: new Date().toISOString(),
-            audioUrl: audioUrl, // URL del audio generado (null si falló)
-            textoAnuncio: textoAnuncio // Texto para fallback
+            audioUrl: null, // Inicialmente null, se actualizará si se genera audio
+            textoAnuncio: textoAnuncio // Texto para fallback (siempre disponible)
           };
 
+          // Emitir el llamado inmediatamente para que aparezca en el display
           io.to('display-room').emit('nuevo-llamado', llamado);
+          console.log(`✅ Llamado emitido para: ${turno.paciente_nombre} - ${consultorioMostrar}`);
 
+          // Responder al cliente inmediatamente (sin esperar audio)
           res.json({ message: 'Paciente llamado exitosamente', llamado });
+
+          // Generar audio en segundo plano (sin bloquear la respuesta)
+          // Si el audio se genera, se puede usar en llamados posteriores pero no es crítico
+          Promise.race([
+            generarAudio(textoAnuncio, {
+              languageCode: 'es-AR',
+              speakingRate: 0.9
+            }),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout de generación de audio')), 5000)
+            )
+          ]).then(audioResultado => {
+            if (audioResultado && audioResultado.url) {
+              console.log(`✅ Audio generado para llamado: ${audioResultado.url}`);
+              // Si el audio se generó, emitir un evento de actualización (opcional)
+              // El display ya tiene el texto para fallback, así que esto es solo una mejora
+              llamado.audioUrl = audioResultado.url;
+            }
+          }).catch(error => {
+            console.warn('⚠️ No se pudo generar audio (se usará fallback):', error.message);
+            // No es crítico, el display usará la voz del navegador
+          });
         }
       );
     }
