@@ -488,7 +488,7 @@ router.post('/:id/llamar', verificarToken, verificarRol('medico'), async (req, r
           res.json({ message: 'Paciente llamado exitosamente', llamado });
 
           // Generar audio en segundo plano (sin bloquear la respuesta)
-          // Si el audio se genera, se puede usar en llamados posteriores pero no es crítico
+          // Si el audio se genera, emitir un evento de actualización con el audioUrl
           Promise.race([
             generarAudio(textoAnuncio, {
               languageCode: 'es-AR',
@@ -500,9 +500,13 @@ router.post('/:id/llamar', verificarToken, verificarRol('medico'), async (req, r
           ]).then(audioResultado => {
             if (audioResultado && audioResultado.url) {
               console.log(`✅ Audio generado para llamado: ${audioResultado.url}`);
-              // Si el audio se generó, emitir un evento de actualización (opcional)
-              // El display ya tiene el texto para fallback, así que esto es solo una mejora
+              // Actualizar el objeto llamado con el audioUrl
               llamado.audioUrl = audioResultado.url;
+              // Emitir un evento de actualización para que el display use el audio generado
+              io.to('display-room').emit('audio-listo', {
+                timestamp: llamado.timestamp,
+                audioUrl: audioResultado.url
+              });
             }
           }).catch(error => {
             console.warn('⚠️ No se pudo generar audio (se usará fallback):', error.message);

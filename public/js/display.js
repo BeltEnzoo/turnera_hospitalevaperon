@@ -114,6 +114,19 @@ function conectarSocket() {
         agregarAlHistorial(llamado);
     });
 
+    // Escuchar cuando el audio esté listo (si se generó después del llamado inicial)
+    socket.on('audio-listo', (data) => {
+        console.log('Audio listo recibido:', data);
+        // Buscar en la cola si hay un llamado pendiente con este timestamp y actualizar su audioUrl
+        const llamadoEnCola = colaLlamados.find(ll => 
+            Math.abs(ll.timestamp - new Date(data.timestamp).getTime()) < 2000
+        );
+        if (llamadoEnCola && !llamadoEnCola.audioUrl) {
+            llamadoEnCola.audioUrl = data.audioUrl;
+            console.log('✅ Audio URL actualizada en cola:', data.audioUrl);
+        }
+    });
+
     socket.on('disconnect', () => {
         console.log('Display desconectado');
     });
@@ -136,6 +149,12 @@ function mostrarLlamado(llamado) {
 }
 
 function reproducirLlamado(llamado) {
+    console.log('🔊 reproducirLlamado llamado con:', {
+        paciente: llamado.paciente_nombre,
+        audioUrl: llamado.audioUrl,
+        textoAnuncio: llamado.textoAnuncio
+    });
+    
     // Formatear el consultorio para el audio
     let consultorioTexto = llamado.consultorio;
     
@@ -148,15 +167,21 @@ function reproducirLlamado(llamado) {
     const texto = llamado.textoAnuncio || `Paciente ${llamado.paciente_nombre}, ${consultorioTexto}`;
     
     // Agregar a la cola en lugar de cancelar el actual
-    colaLlamados.push({
+    const itemCola = {
         texto: texto,
         audioUrl: llamado.audioUrl || null, // URL del audio generado (si existe)
         timestamp: Date.now()
-    });
+    };
+    
+    console.log('📥 Agregando a cola:', itemCola);
+    colaLlamados.push(itemCola);
     
     // Si no se está reproduciendo nada, iniciar la reproducción de la cola
     if (!reproduciendoLlamado) {
+        console.log('▶️ Iniciando reproducción de cola');
         procesarColaLlamados();
+    } else {
+        console.log('⏸️ Ya hay reproducción en curso, agregado a cola');
     }
 }
 
@@ -209,20 +234,24 @@ function procesarColaLlamados() {
     const llamado = colaLlamados.shift(); // Tomar el primer llamado de la cola
     
     // Función para reproducir el llamado (una vez)
-    const reproducirUnaVez = () => {
+    const reproducirUnaVez = async () => {
         // Si hay audio URL generado, intentar usarlo (más natural)
         if (llamado.audioUrl) {
             console.log('🎵 Intentando reproducir audio generado:', llamado.audioUrl);
-            return reproducirAudioDesdeURL(llamado.audioUrl)
-                .catch((error) => {
-                    // Si falla el audio MP3, usar fallback de síntesis de voz
-                    console.warn('⚠️ Error reproduciendo audio MP3, usando fallback de síntesis de voz:', error);
-                    return hablar(llamado.texto);
-                });
+            try {
+                await reproducirAudioDesdeURL(llamado.audioUrl);
+                console.log('✅ Audio MP3 reproducido exitosamente');
+            } catch (error) {
+                // Si falla el audio MP3, usar fallback de síntesis de voz
+                console.warn('⚠️ Error reproduciendo audio MP3, usando fallback de síntesis de voz:', error);
+                console.log('🔊 Cambiando a síntesis de voz para:', llamado.texto);
+                await hablar(llamado.texto);
+            }
         } else {
             // Fallback: usar voz del navegador
-            console.log('🔊 Usando voz del navegador (fallback)');
-            return hablar(llamado.texto);
+            console.log('🔊 Usando voz del navegador (fallback) - No hay audioUrl');
+            console.log('🔊 Texto a pronunciar:', llamado.texto);
+            await hablar(llamado.texto);
         }
     };
     
