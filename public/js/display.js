@@ -49,30 +49,72 @@ document.addEventListener('DOMContentLoaded', async () => {
     conectarSocket();
     cargarHistorial();
     
-    // Habilitar audio automáticamente: hacer una prueba silenciosa al cargar
-    // Esto permite que Chromium reproduzca audio sin interacción del usuario
-    setTimeout(() => {
-        if (synth) {
-            const testUtterance = new SpeechSynthesisUtterance('test');
-            testUtterance.volume = 0.01; // Muy bajo pero no cero
-            testUtterance.rate = 10; // Muy rápido
-            testUtterance.onstart = () => {
-                console.log('✅ Test de audio iniciado');
-                synth.cancel(); // Cancelar inmediatamente
-            };
-            testUtterance.onerror = (e) => {
+    // Mostrar mensaje si el usuario necesita hacer click para habilitar audio
+    // Esto es necesario porque algunos navegadores bloquean audio sin interacción
+    const audioWarning = document.createElement('div');
+    audioWarning.id = 'audio-warning';
+    audioWarning.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 30px 50px;
+        border-radius: 15px;
+        z-index: 10000;
+        text-align: center;
+        font-size: 24px;
+        display: none;
+        box-shadow: 0 5px 30px rgba(0,0,0,0.5);
+    `;
+    audioWarning.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 20px;">🔊</div>
+        <div>Por favor, haz click en cualquier parte de la pantalla</div>
+        <div style="font-size: 18px; margin-top: 10px; opacity: 0.8;">para habilitar el audio</div>
+    `;
+    document.body.appendChild(audioWarning);
+    
+    // Intentar habilitar audio con una prueba silenciosa
+    let audioHabilitado = false;
+    function intentarHabilitarAudio() {
+        if (audioHabilitado || !synth) return;
+        
+        const testUtterance = new SpeechSynthesisUtterance('test');
+        testUtterance.volume = 0.01;
+        testUtterance.rate = 10;
+        testUtterance.onstart = () => {
+            audioHabilitado = true;
+            audioWarning.style.display = 'none';
+            synth.cancel();
+            console.log('✅ Audio habilitado para reproducción automática');
+        };
+        testUtterance.onerror = (e) => {
+            if (e.error === 'not-allowed') {
+                // Mostrar mensaje para que el usuario haga click
+                audioWarning.style.display = 'block';
+                console.warn('⚠️ Audio bloqueado, esperando interacción del usuario...');
+            } else {
                 console.error('❌ Error en test de audio:', e);
-            };
-            synth.speak(testUtterance);
-            // Cancelar después de un momento si no se canceló antes
-            setTimeout(() => {
-                if (synth.speaking) {
-                    synth.cancel();
-                }
-                console.log('✅ Audio habilitado para reproducción automática');
-            }, 100);
+            }
+        };
+        synth.speak(testUtterance);
+        setTimeout(() => {
+            if (synth.speaking) {
+                synth.cancel();
+            }
+        }, 100);
+    }
+    
+    // Intentar habilitar después de 2 segundos
+    setTimeout(intentarHabilitarAudio, 2000);
+    
+    // Permitir que el usuario habilite audio haciendo click
+    document.addEventListener('click', () => {
+        if (!audioHabilitado) {
+            intentarHabilitarAudio();
         }
-    }, 2000);
+    }, { once: true });
 });
 
 async function cargarAudioConfig() {
@@ -130,14 +172,40 @@ function conectarSocket() {
 
     // Escuchar cuando el audio esté listo (si se generó después del llamado inicial)
     socket.on('audio-listo', (data) => {
-        console.log('Audio listo recibido:', data);
+        console.log('🎵 Audio listo recibido:', data);
         // Buscar en la cola si hay un llamado pendiente con este timestamp y actualizar su audioUrl
         const llamadoEnCola = colaLlamados.find(ll => 
-            Math.abs(ll.timestamp - new Date(data.timestamp).getTime()) < 2000
+            Math.abs(ll.timestamp - new Date(data.timestamp).getTime()) < 5000
         );
-        if (llamadoEnCola && !llamadoEnCola.audioUrl) {
-            llamadoEnCola.audioUrl = data.audioUrl;
-            console.log('✅ Audio URL actualizada en cola:', data.audioUrl);
+        if (llamadoEnCola) {
+            if (!llamadoEnCola.audioUrl) {
+                llamadoEnCola.audioUrl = data.audioUrl;
+                console.log('✅ Audio URL actualizada en cola:', data.audioUrl);
+                // Si ya se estaba intentando reproducir y falló, intentar de nuevo con el audio MP3
+                if (reproduciendoLlamado && colaLlamados.length > 0 && colaLlamados[0] === llamadoEnCola) {
+                    console.log('🔄 Reintentando reproducción con audio MP3...');
+                    // Cancelar síntesis de voz si está hablando
+                    if (synth && synth.speaking) {
+                        synth.cancel();
+                    }
+                    // Reprocesar la cola para usar el audio MP3
+                    setTimeout(() => {
+                        procesarColaLlamados();
+                    }, 100);
+                }
+            }
+        } else {
+            // Si no está en la cola, podría ser que ya falló, intentar reproducir el audio MP3 directamente
+            console.log('🔄 Audio llegó después, intentando reproducir directamente:', data.audioUrl);
+            // Agregar a la cola con el audio URL
+            colaLlamados.push({
+                texto: '', // No necesitamos texto si tenemos audio
+                audioUrl: data.audioUrl,
+                timestamp: Date.now()
+            });
+            if (!reproduciendoLlamado) {
+                procesarColaLlamados();
+            }
         }
     });
 
@@ -265,7 +333,27 @@ function procesarColaLlamados() {
             // Fallback: usar voz del navegador
             console.log('🔊 Usando voz del navegador (fallback) - No hay audioUrl');
             console.log('🔊 Texto a pronunciar:', llamado.texto);
-            await hablar(llamado.texto);
+            try {
+                await hablar(llamado.texto);
+            } catch (error) {
+                console.error('❌ Error en síntesis de voz (fallback):', error);
+                // Si la síntesis falla con "not-allowed", esperar un poco y volver a intentar
+                // o mostrar un mensaje de que necesita interacción del usuario
+                if (error.error === 'not-allowed') {
+                    console.warn('⚠️ Navegador bloqueó síntesis de voz (not-allowed). Esperando audio MP3...');
+                    // Esperar un poco más por si llega el audio MP3
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    // Verificar si llegó el audioUrl mientras esperábamos
+                    if (llamado.audioUrl) {
+                        console.log('✅ Audio MP3 llegó, intentando reproducir:', llamado.audioUrl);
+                        await reproducirAudioDesdeURL(llamado.audioUrl);
+                    } else {
+                        throw new Error('Síntesis de voz bloqueada y no hay audio MP3 disponible');
+                    }
+                } else {
+                    throw error;
+                }
+            }
         }
     };
     
