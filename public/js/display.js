@@ -52,12 +52,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Habilitar audio automáticamente: hacer una prueba silenciosa al cargar
     // Esto permite que Chromium reproduzca audio sin interacción del usuario
     setTimeout(() => {
-        const testUtterance = new SpeechSynthesisUtterance('');
-        testUtterance.volume = 0;
-        testUtterance.rate = 0.1;
-        synth.speak(testUtterance);
-        synth.cancel(); // Cancelar inmediatamente, solo queríamos "activar" el audio
-        console.log('✅ Audio habilitado para reproducción automática');
+        if (synth) {
+            const testUtterance = new SpeechSynthesisUtterance('test');
+            testUtterance.volume = 0.01; // Muy bajo pero no cero
+            testUtterance.rate = 10; // Muy rápido
+            testUtterance.onstart = () => {
+                console.log('✅ Test de audio iniciado');
+                synth.cancel(); // Cancelar inmediatamente
+            };
+            testUtterance.onerror = (e) => {
+                console.error('❌ Error en test de audio:', e);
+            };
+            synth.speak(testUtterance);
+            // Cancelar después de un momento si no se canceló antes
+            setTimeout(() => {
+                if (synth.speaking) {
+                    synth.cancel();
+                }
+                console.log('✅ Audio habilitado para reproducción automática');
+            }, 100);
+        }
     }, 2000);
 });
 
@@ -284,6 +298,20 @@ function procesarColaLlamados() {
 
 function hablar(texto) {
     return new Promise((resolve, reject) => {
+        // Verificar que SpeechSynthesis está disponible
+        if (!('speechSynthesis' in window)) {
+            console.error('❌ SpeechSynthesis no está disponible en este navegador');
+            reject(new Error('SpeechSynthesis no disponible'));
+            return;
+        }
+        
+        // Verificar que synth está definido
+        if (!synth) {
+            console.error('❌ synth no está inicializado');
+            reject(new Error('synth no inicializado'));
+            return;
+        }
+        
         // Agregar un punto y espacio al inicio para evitar que espeak-ng corte la primera palabra
         // Es un workaround para un bug conocido de espeak-ng/speech-dispatcher
         // El punto ayuda a "anclar" el inicio del texto
@@ -370,6 +398,7 @@ function hablar(texto) {
             console.error('❌ Error en síntesis de voz:', event);
             console.error('   Error type:', event.error);
             console.error('   Char index:', event.charIndex);
+            console.error('   Message:', event.message);
             reject(event); // Rechazar para que se maneje el error
         };
         
@@ -378,25 +407,49 @@ function hablar(texto) {
             console.log('✅ Síntesis de voz iniciada correctamente');
         };
         
-        console.log('Reproduciendo:', texto, 'con voz:', utterance.voice ? utterance.voice.name : 'ninguna', 'idioma:', utterance.lang);
+        utterance.onpause = () => {
+            console.log('⏸️ Síntesis de voz pausada');
+        };
         
-        // Verificar si el navegador soporta síntesis de voz
-        if (!synth) {
-            console.error('❌ SpeechSynthesis no está disponible');
-            reject(new Error('SpeechSynthesis no disponible'));
-            return;
-        }
+        utterance.onresume = () => {
+            console.log('▶️ Síntesis de voz reanudada');
+        };
+        
+        utterance.onboundary = (event) => {
+            console.log('📍 Límite de palabra:', event.charIndex);
+        };
+        
+        console.log('Reproduciendo:', texto, 'con voz:', utterance.voice ? utterance.voice.name : 'ninguna', 'idioma:', utterance.lang);
+        console.log('🔊 Estado de synth:', {
+            speaking: synth.speaking,
+            pending: synth.pending,
+            paused: synth.paused
+        });
         
         // Verificar si está hablando antes de iniciar (cancelar cualquier reproducción previa)
         if (synth.speaking) {
             console.log('⚠️ Ya hay una voz hablando, cancelando...');
             synth.cancel();
-            // Pequeño delay antes de continuar
+            // Esperar un poco más para asegurar que se canceló
             setTimeout(() => {
+                console.log('▶️ Iniciando nueva síntesis después de cancelar');
                 synth.speak(utterance);
-            }, 100);
+            }, 300);
         } else {
-            synth.speak(utterance);
+            console.log('▶️ Iniciando síntesis directamente');
+            try {
+                synth.speak(utterance);
+                // Verificar si realmente se inició
+                setTimeout(() => {
+                    if (!synth.speaking && !synth.pending) {
+                        console.error('❌ La síntesis no se inició correctamente');
+                        reject(new Error('Síntesis no se inició'));
+                    }
+                }, 500);
+            } catch (error) {
+                console.error('❌ Excepción al iniciar síntesis:', error);
+                reject(error);
+            }
         }
     });
 }
